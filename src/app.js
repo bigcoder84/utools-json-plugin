@@ -2,6 +2,7 @@ import { isolateHistory } from '@codemirror/commands'
 import { unfoldAll } from '@codemirror/language'
 import { setDiagnostics } from '@codemirror/lint'
 import { EditorView } from '@codemirror/view'
+import { DEFAULT_SETTINGS, normalizeSettings } from './app/settings.js'
 import { createTabController } from './app/tabs.js'
 import { createViewController } from './app/views.js'
 import { analyzeDocument } from './core/analysis.js'
@@ -12,10 +13,11 @@ import { setContainerCounts } from './editor/counts.js'
 import { clearOccurrences, foldToLevel, highlightOccurrences, revealRange } from './editor/locate.js'
 import { setNestedStrings } from './editor/nested.js'
 import { createEditorState, indentCompartment, indentExtension, wrapCompartment, wrapExtension } from './editor/setup.js'
-import { copyText, getItem, isMac, openExternal, setItem } from './platform.js'
+import { copyText, getItem, isDarkMode, isMac, openExternal, setItem } from './platform.js'
 import { createBottomBar } from './ui/bottomBar.js'
 import { h } from './ui/dom.js'
 import { createImagePanel } from './ui/imagePanel.js'
+import { createSettingsDialog } from './ui/settingsDialog.js'
 import { createSubviewBar } from './ui/subviewBar.js'
 import { createTabBar } from './ui/tabBar.js'
 import { showToast } from './ui/toast.js'
@@ -46,11 +48,11 @@ export function createApp(container) {
   const hasSavedContent = documents.length > 0 || (typeof legacyContent === 'string' && legacyContent.length > 0)
   if (documents.length === 0) documents.push({ id: 1, title: 'JSON 1', content: typeof legacyContent === 'string' ? legacyContent : '' })
   let persistedTabIds = new Set(restoredIds)
-  const settings = {
-    indent: getItem('indent', 2) === 4 ? 4 : 2,
-    imagePanelOpen: getItem('imagePanelOpen', true) !== false,
-    wrap: getItem('wrap', false) === true,
-  }
+  const settings = normalizeSettings(Object.fromEntries(
+    Object.entries(DEFAULT_SETTINGS).map(([key, fallback]) => [key, getItem(key, fallback)]),
+  ))
+  applyAppearance()
+  window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', applyAppearance)
   const mac = isMac()
   const keys = { mod: mac ? '⌘' : 'Ctrl+', shift: mac ? '⇧' : 'Shift+' }
 
@@ -76,10 +78,19 @@ export function createApp(container) {
     onDiscard: () => views.discard(),
   })
   const tabBar = createTabBar({ onSelect: switchTab, onClose: closeTab })
+  const settingsDialog = createSettingsDialog({
+    onChange: updateSetting,
+    onReset: () => {
+      // 缩进可能重排文档，放在其它显示选项同步之后。
+      for (const name of ['theme', 'fontSize', 'wrap', 'imagePanelOpen', 'indent']) updateSetting(name, DEFAULT_SETTINGS[name])
+    },
+    onClose: () => bottomBar.setSettingsOpen(false),
+  })
   const editorHost = h('div', { className: 'editor', id: 'json-editor', role: 'tabpanel', 'aria-label': 'JSON 编辑器' })
   container.append(
     h('div', { className: 'workspace' }, h('div', { className: 'editor-column' }, tabBar.root, subviewBar.root, editorHost), panel.root),
     bottomBar.root,
+    settingsDialog.root,
   )
   const tooltips = createTooltips(container)
 
@@ -147,6 +158,7 @@ export function createApp(container) {
 
   bottomBar.setIndent(settings.indent)
   bottomBar.setWrap(settings.wrap)
+  settingsDialog.render(settings)
   setImagePanelOpen(settings.imagePanelOpen, { persist: false })
   tabs.start()
   tabBar.render(tabs.list(), tabs.activeId)
@@ -158,6 +170,31 @@ export function createApp(container) {
         wrapCompartment.reconfigure(wrapExtension(settings.wrap)),
       ],
     })
+  }
+
+  function applyAppearance() {
+    document.documentElement.classList.toggle('dark', settings.theme === 'dark' || (settings.theme === 'system' && isDarkMode()))
+    document.documentElement.style.setProperty('--editor-font-size', `${settings.fontSize}px`)
+  }
+
+  function updateSetting(name, value) {
+    if (!Object.hasOwn(DEFAULT_SETTINGS, name)) return
+    const next = normalizeSettings({ ...settings, [name]: value })[name]
+    if (settings[name] === next) return
+    if (name === 'indent') setIndent(next)
+    else if (name === 'wrap') setWrap(next)
+    else if (name === 'imagePanelOpen') setImagePanelOpen(next)
+    else {
+      settings[name] = next
+      persistSetting(name)
+      applyAppearance()
+      view.requestMeasure()
+      settingsDialog.render(settings)
+    }
+  }
+
+  function persistSetting(name) {
+    if (!setItem(name, settings[name])) showToast('设置保存失败，本次运行仍然生效', 'error')
   }
 
   /** 视图切换（过滤、展开、进入/返回子视图）后同步底部栏和路径导航 */
@@ -327,7 +364,8 @@ export function createApp(container) {
     settings.imagePanelOpen = open
     container.classList.toggle('panel-open', open)
     bottomBar.setImagePanelOpen(open)
-    if (persist) setItem('imagePanelOpen', open)
+    if (persist) persistSetting('imagePanelOpen')
+    settingsDialog.render(settings)
   }
 
   // ---------- JS 过滤 / 展开嵌套 ----------
@@ -391,11 +429,17 @@ export function createApp(container) {
     wrap: toggleWrap,
     images: () => setImagePanelOpen(!settings.imagePanelOpen),
     newTab,
+    settings: () => {
+      tooltips.hide()
+      settingsDialog.render(settings)
+      settingsDialog.open()
+      bottomBar.setSettingsOpen(true)
+    },
   }
 
   function runAction(name) {
     actions[name]?.()
-    if (name !== 'images') view.focus()
+    if (name !== 'images' && name !== 'settings') view.focus()
     return true
   }
 
@@ -452,9 +496,15 @@ export function createApp(container) {
   }
 
   function toggleIndent() {
-    settings.indent = settings.indent === 2 ? 4 : 2
-    setItem('indent', settings.indent)
+    setIndent(settings.indent === 2 ? 4 : 2)
+    showToast(`缩进：${settings.indent} 空格`)
+  }
+
+  function setIndent(size) {
+    settings.indent = size
+    persistSetting('indent')
     bottomBar.setIndent(settings.indent)
+    settingsDialog.render(settings)
     syncCompartments()
 
     if (views.isResultView()) {
@@ -463,13 +513,17 @@ export function createApp(container) {
       const result = smartFormat(currentText(), indentText())
       if (result.ok && !result.unescaped && currentText().includes('\n')) replaceDocument(result.text, 'format')
     }
-    showToast(`缩进：${settings.indent} 空格`)
   }
 
   function toggleWrap() {
-    settings.wrap = !settings.wrap
-    setItem('wrap', settings.wrap)
+    setWrap(!settings.wrap)
+  }
+
+  function setWrap(enabled) {
+    settings.wrap = enabled
+    persistSetting('wrap')
     bottomBar.setWrap(settings.wrap)
+    settingsDialog.render(settings)
     syncCompartments()
   }
 
@@ -573,6 +627,7 @@ export function createApp(container) {
     loadDroppedFile,
     flushSave,
     hasSavedContent,
+    applyAppearance,
     focus: () => view.focus(),
   }
 }

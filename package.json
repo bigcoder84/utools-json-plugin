@@ -1,6 +1,6 @@
 {
   "name": "utools-json-plugin",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "uTools JSON 编辑器：格式化、压缩、转义、折叠、去注释、JS 过滤、链接跳转与图片预览/提取",
   "type": "module",

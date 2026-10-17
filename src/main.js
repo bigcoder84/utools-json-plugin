@@ -1,15 +1,8 @@
 import './styles.css'
 import { createApp } from './app.js'
-import { isDarkMode, isUtools, onPluginEnter, onPluginOut, readTextFile } from './platform.js'
+import { isUtools, onPluginEnter, onPluginOut, readTextFile } from './platform.js'
 import { SAMPLE_JSON } from './sample.js'
 import { showToast } from './ui/toast.js'
-
-function applyTheme() {
-  document.documentElement.classList.toggle('dark', isDarkMode())
-}
-
-applyTheme()
-window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', applyTheme)
 
 const app = createApp(document.getElementById('app'))
 
@@ -28,7 +21,7 @@ function openFiles(files) {
 }
 
 onPluginEnter(({ type, payload }) => {
-  applyTheme()
+  app.applyAppearance()
   if (type === 'files') openFiles(payload)
   else if ((type === 'regex' || type === 'over') && typeof payload === 'string') app.setContent(payload)
   app.focus()

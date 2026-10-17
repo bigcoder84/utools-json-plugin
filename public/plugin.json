@@ -1,7 +1,7 @@
 {
   "pluginName": "JSON 序列化",
   "description": "JSON 格式化、压缩、转义、JS 过滤，链接跳转与图片预览/提取",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.html",
   "logo": "logo.png",
   "preload": "preload.js",

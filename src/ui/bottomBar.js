@@ -26,6 +26,7 @@ function toolbarButtons({ mod, shift }) {
     { action: 'images', icon: 'image', title: `图片列表（${mod}${shift}I）`, badge: true },
     'divider',
     { action: 'newTab', icon: 'newTab', title: `新增标签页（${mod}T）` },
+    { action: 'settings', icon: 'settings', title: '设置' },
   ]
 }
 
@@ -91,6 +92,11 @@ export function createBottomBar({ onFilterInput, onAction, keys }) {
         badge = h('span', { className: 'icon-btn__badge', hidden: true })
         button.append(badge)
       }
+      if (item.action === 'settings') {
+        button.setAttribute('aria-haspopup', 'dialog')
+        button.setAttribute('aria-controls', 'settings-dialog')
+        button.setAttribute('aria-expanded', 'false')
+      }
       buttons.set(item.action, button)
       return button
     }),
@@ -147,6 +153,10 @@ export function createBottomBar({ onFilterInput, onAction, keys }) {
     },
     setIndent(size) {
       buttons.get('indent').textContent = `缩进 ${size}`
+    },
+    setSettingsOpen(open) {
+      buttons.get('settings').classList.toggle('is-on', open)
+      buttons.get('settings').setAttribute('aria-expanded', String(open))
     },
   }
 }
