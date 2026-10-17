@@ -1,0 +1,45 @@
+{
+  "pluginName": "JSON 序列化",
+  "description": "JSON 格式化、压缩、转义、JS 过滤，链接跳转与图片预览/提取",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "pluginSetting": {
+    "single": true
+  },
+  "development": {
+    "main": "http://127.0.0.1:5173"
+  },
+  "features": [
+    {
+      "code": "json",
+      "explain": "JSON 格式化、压缩、转义、JS 过滤，链接跳转与图片预览/提取",
+      "description": "JSON 格式化、压缩、转义、JS 过滤，链接跳转与图片预览/提取",
+      "cmds": [
+        "JSON",
+        "Json 编辑器",
+        "JSON 序列化",
+        "JSON 格式化",
+        {
+          "type": "regex",
+          "label": "JSON 序列化",
+          "match": "/^\\s*\"?\\s*[\\[{][\\s\\S]*[\\]}]\\s*\"?\\s*$/",
+          "minLength": 2
+        },
+        {
+          "type": "files",
+          "label": "用 JSON 序列化打开",
+          "fileType": "file",
+          "extensions": [
+            "json",
+            "jsonc",
+            "har",
+            "geojson"
+          ],
+          "maxLength": 1
+        }
+      ]
+    }
+  ]
+}

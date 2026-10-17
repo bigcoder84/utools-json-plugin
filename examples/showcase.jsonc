@@ -1,0 +1,49 @@
+{
+  // 中性示例：包含图片、重复引用和嵌套 JSON
+  "title": "JSON 功能演示",
+  /* 格式化、压缩后应保留这个大整数的原始数字 */
+  "largeNumber": 12345678901234567890,
+  "link": "https://www.u-tools.cn/docs/getting-started/overview.html",
+  // 多行数组显示元素个数；前两项引用同一张图片
+  "items": [
+    {
+      "index": 1,
+      "label": "示例 A",
+      "active": true,
+      "value": 12.5,
+      "image": "https://www.i3zh.com/wp-content/uploads/2024/12/20241210012157991-%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20241210002227.jpg",
+      "tags": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "index": 2,
+      "label": "示例 B",
+      "active": true,
+      "value": 24,
+      "image": "https://www.i3zh.com/wp-content/uploads/2024/12/20241210012157991-%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20241210002227.jpg",
+      "tags": [
+        "C"
+      ]
+    },
+    {
+      "index": 3,
+      "label": "示例 C",
+      "active": false,
+      "value": 0,
+      "image": "https://avatars.githubusercontent.com/u/86176175?v=4",
+      "tags": []
+    }
+  ],
+  "assets": {
+    "first": "https://www.i3zh.com/wp-content/uploads/2024/12/20241210012157991-%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20241210002227.jpg",
+    "second": "https://avatars.githubusercontent.com/u/86176175?v=4",
+    "third": "//www.i3zh.com/wp-content/uploads/2024/12/20241210012157991-%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20241210002227.jpg"
+  },
+  "html": "<p>图片示例：<img src='https://www.i3zh.com/wp-content/uploads/2024/12/20241210012157991-%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20241210002227.jpg' alt='示例图片'></p>",
+  // 字符串内部是 JSON，可通过标签进入查看和编辑
+  "nested": "{\"label\":\"嵌套示例\",\"image\":\"https://www.i3zh.com/wp-content/uploads/2024/12/20241210012157991-%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20241210002227.jpg\",\"items\":[{\"label\":\"A\",\"value\":1},{\"label\":\"B\",\"value\":2}]}",
+  // 继续进入 data，可以查看第二层嵌套
+  "extra": "{\"depth\":1,\"data\":\"{\\\"depth\\\":2,\\\"message\\\":\\\"修改此处后返回，可查看自动写回的结果\\\",\\\"image\\\":\\\"https://www.i3zh.com/wp-content/uploads/2024/12/20241210012157991-%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20241210002227.jpg\\\"}\"}"
+}
