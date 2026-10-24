@@ -41,9 +41,12 @@ export function createTabController({ documents, activeId, makeSession, capture,
       onChange()
       return true
     },
-    rename(title) {
-      current().title = title || `JSON ${currentId}`
+    rename(title, id = currentId) {
+      const tab = tabs.find((item) => item.id === id)
+      if (!tab) return false
+      tab.title = title || `JSON ${id}`
       onChange()
+      return true
     },
     /** 异步读取文件结束时，更新发起读取的文档，避免覆盖后来切换到的标签。 */
     replace(id, content, title) {

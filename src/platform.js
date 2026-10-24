@@ -71,6 +71,50 @@ export function onPluginOut(callback) {
   utools?.onPluginOut?.(callback)
 }
 
+export function onPluginDetach(callback) {
+  utools?.onPluginDetach?.(callback)
+}
+
+export function isDetached() {
+  return utools?.getWindowType?.() === 'detach'
+}
+
+export function hasDetached() {
+  if (isUtools && !window.services?.hasDetached) return Promise.reject(new Error('插件桥接脚本版本过旧，请结束旧插件进程后重试'))
+  return window.services?.hasDetached?.() ?? Promise.resolve(false)
+}
+
+export function createWorkspaceScope() {
+  return `workspace/${window.crypto.randomUUID()}/`
+}
+
+export function forwardToDetached(action) {
+  if (isUtools && (!window.services?.hasDetached || !window.services?.forwardToDetached)) {
+    throw new Error('插件桥接脚本未加载，请结束旧插件进程并重新加载 plugin.json')
+  }
+  return window.services?.forwardToDetached?.(action) ?? Promise.resolve(false)
+}
+
+export function listenDetached(callback, onComplete) {
+  if (!window.services?.hasDetached || !window.services?.listenDetached) throw new Error('插件桥接脚本未加载，请结束旧插件进程并重新加载 plugin.json')
+  return window.services.listenDetached(callback, onComplete)
+}
+
+export function stopDetached() {
+  window.services?.stopDetached?.()
+}
+
+export function closeEntry() {
+  if (!isDetached()) utools?.hideMainWindow?.(false)
+  utools?.outPlugin?.(true)
+}
+
+export function focusDetached() {
+  if (window.services?.focusDetached) return window.services.focusDetached()
+  window.focus()
+  return Promise.resolve()
+}
+
 /** 通过 preload 读取文件（仅 uTools 环境可用） */
 export function readTextFile(filePath) {
   const reader = window.services?.readTextFile

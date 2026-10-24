@@ -30,24 +30,30 @@ const MAX_FILE_BYTES = 20 * 1024 * 1024
 
 const analysisDelay = (length) => Math.min(1000, 120 + length / 20000)
 
-export function createApp(container) {
-  const storedTabs = getItem('tabs', null)
+function readWorkspace(scope) {
+  const storedTabs = getItem(`${scope}tabs`, null)
   const restoredIds = new Set()
   const documents = []
   for (const item of Array.isArray(storedTabs?.items) ? storedTabs.items : []) {
     if (!Number.isSafeInteger(item?.id) || item.id < 1 || restoredIds.has(item.id)) continue
     restoredIds.add(item.id)
-    const text = getItem(`tab/${item.id}`, '')
+    const text = getItem(`${scope}tab/${item.id}`, '')
     documents.push({
       id: item.id,
       title: typeof item.title === 'string' && item.title ? item.title : `JSON ${item.id}`,
       content: typeof text === 'string' ? text : '',
     })
   }
-  const legacyContent = getItem('content', '')
+  const legacyContent = getItem(`${scope}content`, '')
   const hasSavedContent = documents.length > 0 || (typeof legacyContent === 'string' && legacyContent.length > 0)
   if (documents.length === 0) documents.push({ id: 1, title: 'JSON 1', content: typeof legacyContent === 'string' ? legacyContent : '' })
+  return { storedTabs, restoredIds, documents, hasSavedContent }
+}
+
+export function createApp(container, { storageScope = '' } = {}) {
+  const { storedTabs, restoredIds, documents, hasSavedContent } = readWorkspace(storageScope)
   let persistedTabIds = new Set(restoredIds)
+  let savingEnabled = true
   const settings = normalizeSettings(Object.fromEntries(
     Object.entries(DEFAULT_SETTINGS).map(([key, fallback]) => [key, getItem(key, fallback)]),
   ))
@@ -77,7 +83,12 @@ export function createApp(container) {
     onNavigate: (depth) => views.popTo(depth),
     onDiscard: () => views.discard(),
   })
-  const tabBar = createTabBar({ onSelect: switchTab, onClose: closeTab })
+  const tabBar = createTabBar({
+    onAdd: () => runAction('newTab'),
+    onSelect: switchTab,
+    onClose: closeTab,
+    onRename: (id, title) => tabs.rename(title, id),
+  })
   const settingsDialog = createSettingsDialog({
     onChange: updateSetting,
     onReset: () => {
@@ -401,7 +412,7 @@ export function createApp(container) {
 
   function newTab() {
     flushPendingFilter()
-    tabs.add()
+    return tabs.add()
   }
 
   function closeTab(id) {
@@ -594,6 +605,7 @@ export function createApp(container) {
   /** 每个标签单独保存根文档；子视图中的修改在返回写回后才会保存。 */
   function flushSave() {
     clearTimeout(timers.save)
+    if (!savingEnabled) return
     const documents = tabs.snapshot()
     let saved = true
     let tooLarge = false
@@ -601,19 +613,19 @@ export function createApp(container) {
       // 按每个存储文档的序列化体积计算，避免多标签共用 1MB 配额。
       const fits = utf8Length(JSON.stringify(content)) <= MAX_SAVE_BYTES
       tooLarge ||= !fits
-      saved = setItem(`tab/${id}`, fits ? content : '') && saved
+      saved = setItem(`${storageScope}tab/${id}`, fits ? content : '') && saved
     }
-    const indexSaved = setItem('tabs', { activeId: tabs.activeId, items: tabs.list() })
+    const indexSaved = setItem(`${storageScope}tabs`, { activeId: tabs.activeId, items: tabs.list() })
     saved = indexSaved && saved
     if (indexSaved) {
       const ids = new Set(documents.map((item) => item.id))
       for (const id of persistedTabIds) {
-        if (!ids.has(id)) setItem(`tab/${id}`, null)
+        if (!ids.has(id)) setItem(`${storageScope}tab/${id}`, null)
       }
       persistedTabIds = ids
     }
     const text = documents.find((item) => item.id === tabs.activeId).content
-    saved = setItem('content', utf8Length(JSON.stringify(text)) <= MAX_SAVE_BYTES ? text : '') && saved
+    saved = setItem(`${storageScope}content`, utf8Length(JSON.stringify(text)) <= MAX_SAVE_BYTES ? text : '') && saved
     const notice = tooLarge ? 'tooLarge' : saved ? null : 'failed'
     if (notice && notice !== saveNotice) {
       showToast(notice === 'tooLarge' ? '单个标签内容超过 800KB 时不会自动保存，关闭插件后该标签内容不保留' : '自动保存失败', 'error')
@@ -621,8 +633,54 @@ export function createApp(container) {
     saveNotice = notice
   }
 
+  function importDocuments({ documents, activeIndex = 0 }) {
+    const ids = documents.map(({ title, content }) => {
+      const id = newTab()
+      setContent(content, { name: title })
+      return id
+    })
+    switchTab(ids[activeIndex] ?? ids[0])
+  }
+
+  function exportDocuments() {
+    const activeId = tabs.activeId
+    // 分离时将合法的嵌套修改写回，不能写回时保留当前窗口供用户修正。
+    for (const { id } of tabs.list()) {
+      switchTab(id)
+      flushPendingFilter()
+      if (!views.popTo(0)) throw new Error('请先修正嵌套 JSON 的修改，再合并窗口')
+    }
+    switchTab(activeId)
+    const documents = tabs.snapshot()
+    return { documents, activeIndex: documents.findIndex((tab) => tab.id === activeId) }
+  }
+
+  function mergeSavedWorkspace(scope) {
+    if (scope === storageScope) return
+    const saved = readWorkspace(scope)
+    if (!saved.hasSavedContent) return
+    const activeId = tabs.activeId
+    importDocuments({ documents: saved.documents })
+    switchTab(activeId)
+  }
+
+  function stopSaving({ discard = false } = {}) {
+    savingEnabled = false
+    clearTimeout(timers.save)
+    if (!discard) return
+    for (const id of new Set([...persistedTabIds, ...tabs.list().map((tab) => tab.id)])) setItem(`${storageScope}tab/${id}`, null)
+    setItem(`${storageScope}tabs`, null)
+    setItem(`${storageScope}content`, null)
+  }
+
   return {
     view,
+    storageScope,
+    exportDocuments,
+    importDocuments,
+    mergeSavedWorkspace,
+    stopSaving,
+    newTab,
     setContent,
     loadDroppedFile,
     flushSave,

@@ -6,7 +6,7 @@
   "logo": "logo.png",
   "preload": "preload.js",
   "pluginSetting": {
-    "single": true
+    "single": false
   },
   "development": {
     "main": "http://127.0.0.1:5173"

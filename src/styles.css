@@ -192,6 +192,22 @@ select {
   scrollbar-width: thin;
 }
 
+.tab-bar__add {
+  display: grid;
+  flex: none;
+  align-self: center;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin: 0 4px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
 .document-tab {
   display: flex;
   flex: none;
@@ -237,12 +253,25 @@ select {
   cursor: pointer;
 }
 
+.document-tab__rename {
+  width: 150px;
+  min-width: 0;
+  margin: 0 5px;
+  padding: 3px 4px;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  outline: none;
+  background: var(--input-bg);
+}
+
+.tab-bar__add:hover,
 .document-tab__close:hover,
 .document-tab__select:hover {
   color: var(--fg);
   background: var(--hover);
 }
 
+.tab-bar__add:focus-visible,
 .document-tab__select:focus-visible,
 .document-tab__close:focus-visible {
   outline: 2px solid var(--accent);
